@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вишневый сад</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Georgia', serif; }
+        
+        body {
+            background: #0f070f;
+            color: #f5f0f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Стиль игрового окна */
+        .game-window {
+            width: 100vw;
+            height: 100vh;
+            max-width: 1024px;
+            max-height: 576px;
+            border: 3px solid #6b3e6b;
+            border-radius: 8px;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            transition: background-image 0.8s ease-in-out;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .game-window::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.7) 100%);
+            z-index: 1;
+        }
+
+        .sprite-box {
+            position: absolute;
+            bottom: 145px;
+            width: 100%;
+            height: 380px;
+            z-index: 2;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .character-sprite {
+            position: absolute;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.6));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sprite-left { left: 5%; animation: slideFromLeft 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .sprite-right { right: 5%; animation: slideFromRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+
+        @keyframes slideFromLeft { 0% { transform: translateX(-150px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+        @keyframes slideFromRight { 0% { transform: translateX(150px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+
+        .dialogue-box {
+            position: relative;
+            z-index: 3;
+            background: rgba(36, 20, 36, 0.92);
+            backdrop-filter: blur(8px);
+            border-top: 2px solid #8a5a8a;
+            padding: 20px 30px;
+            height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .character-name { font-size: 20px; font-weight: bold; color: #ffd7ff; margin-bottom: 8px; text-shadow: 1px 1px 2px black; }
+        .text-container { font-size: 16px; line-height: 1.5; color: #f0e6f0; overflow-y: auto; white-space: normal; }
+
+        .input-container {
+            position: absolute;
+            top: 40px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 600px;
+            background: rgba(20, 10, 20, 0.96);
+            border: 2px solid #8a5a8a; border-radius: 8px;
+            padding: 20px; z-index: 4;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+        }
+
+        .input-field {
+            width: 100%; padding: 12px; background: #120712;
+            border: 1px solid #733d73; border-radius: 6px; color: #fff;
+            font-size: 15px; margin-top: 10px; margin-bottom: 15px;
+            resize: none; font-family: sans-serif;
+        }
+        .input-field:focus { outline: none; border-color: #ffd7ff; }
+
+        .btn {
+            background: #733d73; color: white; border: none;
+            padding: 10px 20px; font-size: 14px; border-radius: 4px;
+            cursor: pointer; transition: 0.2s;
+        }
+        .btn:hover { background: #945294; }
+        .btn-right { float: right; }
+
+        .overlay-screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26, 15, 26, 0.98); z-index: 10;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 40px; text-align: center;
+        }
+
+        .hidden { display: none !important; }
+        
+        .progress-badge {
+            position: absolute; top: 15px; right: 15px;
+            background: rgba(0,0,0,0.6); padding: 5px 10px;
+            border-radius: 12px; font-size: 12px; color: #d8a0d8; z-index: 5;
+        }
+
+        /* СТИЛИ ДЛЯ АДМИН-ТАБЛИЦЫ РЕЗУЛЬТАТОВ */
+        .admin-panel {
+            width: 100vw; min-height: 100vh; background: #f7f5f8;
+            color: #333; padding: 30px; overflow-y: auto; display: block;
+        }
+        .admin-panel h1 { color: #4a284a; margin-bottom: 25px; text-align: center; }
+        .student-card {
+            background: white; border: 1px solid #e0dbe0;
+            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 25px; padding: 20px;
+        }
+        .student-title {
+            font-size: 20px; color: #733d73; font-weight: bold;
+            border-bottom: 2px solid #733d73; padding-bottom: 8px;
+            margin-bottom: 15px; display: flex; justify-content: space-between;
+        }
+        .time-badge { font-size: 13px; color: #888; font-weight: normal; }
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .admin-table th, .admin-table td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        .admin-table th { background: #f3edf3; color: #555; font-size: 14px; text-transform: uppercase; font-family: sans-serif; }
+        .q-text { font-style: italic; color: #555; max-width: 350px; }
+        .student-ans { font-weight: 600; color: #111; }
+        .loading-text { text-align: center; font-size: 18px; color: #733d73; margin-top: 50px; }
+    </style>
+</head>
+<body>
+
+<!-- ОКНО ИГРЫ (ДЛЯ УЧЕНИКОВ) -->
+<div class="game-window" id="game-window">
+    <div class="progress-badge hidden" id="progress-badge">Вишневый сад</div>
+
+    <div id="auth-screen" class="overlay-screen">
+        <h1 style="color:#ffd7ff; margin-bottom: 15px; font-style: italic;">Вишнёвый сад</h1>
+        <p style="margin-bottom: 25px; max-width: 500px; line-height: 1.6;">Интерактивная новелла-тест по пьесе А.П. Чехова. Пройдите по сюжету, общаясь с героями, и ответьте на их вопросы.</p>
+        <div style="width: 100%; max-width: 320px;">
+            <input type="text" id="student-name" class="input-field" placeholder="Введите Имя и Фамилия">
+            <button class="btn" id="start-btn" style="width: 100%;">Войти в усадьбу</button>
+        </div>
+    </div>
+
+    <div class="sprite-box">
+        <img src="" id="char-sprite" class="character-sprite hidden" alt="Персонаж">
+    </div>
+
+    <div id="input-box" class="input-container hidden">
+        <span style="font-size: 14px; color: #aaa;">Ваш ответ:</span>
+        <textarea id="student-answer" class="input-field" rows="3" placeholder="Введите ответ"></textarea>
+        <button class="btn btn-right" id="submit-btn">Отправить ответ</button>
+    </div>
+
+    <div class="dialogue-box hidden" id="dialogue-box">
+        <div>
+            <div class="character-name" id="character-name"></div>
+            <div class="text-container" id="text-container"></div>
+        </div>
+        <div style="text-align: right;">
+            <button class="btn" id="next-btn">Далее</button>
+        </div>
+    </div>
+
+    <div id="final-screen" class="overlay-screen hidden">
+        <h2 style="color:#ffd7ff; margin-bottom: 15px;">Занавес опустел...</h2>
+        <p style="max-width: 500px; line-height: 1.6; margin-bottom: 20px;">Слышен отдаленный стук топора. Старая жизнь уходит, уступая место новой. Ваши ответы сохранены.</p>
+        <p style="font-style: italic; color: #a188a1;">«Мы насадим новый сад, роскошнее этого...»</p>
+    </div>
+</div>
+
+<!-- ОКНО ТАБЛИЦЫ ОТВЕТОВ (ДЛЯ УЧИТЕЛЯ) -->
+<div id="admin-window" class="admin-panel hidden">
+    <h1>Результаты прохождения квеста «Вишневый сад»</h1>
+    <div id="loading-status" class="loading-text">Загрузка данных из Firebase...</div>
+    <div id="table-results-container"></div>
+</div>
+
+
+<!-- FIREBASE И ЛОГИКА -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCzBalqc-TvuZLRuYt5b6VzFAf_zEEs_F8",
+        authDomain: "cherry-orchard-quest.firebaseapp.com",
+        databaseURL: "https://cherry-orchard-quest-default-rtdb.firebaseio.com",
+        projectId: "cherry-orchard-quest",
+        storageBucket: "cherry-orchard-quest.firebasestorage.app",
+        messagingSenderId: "1089281973502",
+        appId: "1:1089281973502:web:d8627f7e12c180f83d59af"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // === ПРОВЕРКА КТО ОТКРЫЛ ССЫЛКУ (УЧЕНИК ИЛИ УЧИТЕЛЬ) ===
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('admin') === '1') {
+        // Если в ссылке есть ?admin=1, прячем игру и включаем генерацию таблицы
+        document.getElementById('game-window').style.display = 'none';
+        document.getElementById('admin-window').classList.remove('hidden');
+        initAdminPanel();
+    }
+
+    const scenario = [
+        {
+            speaker: "Любовь Раневская",
+            sprite: "images/char_ranevskaya.png", 
+            bg: "images/bg_spring_garden.jpg", 
+            text: "Приветствую тебя в нашей старой усадьбе! Посмотри в окно... Какой чудесный сад! Белые цветы, чистота... Скажи, а какие личные ассоциации вызывает у тебя само словосочетание — «вишнёвый сад»?",
+            correct: "Белые цветы как символ чистоты. Место, где можно укрыться от мира и попасть в счастье. Реальный показатель времени: осенью – печальный, зимой – сказочный, весной – волшебный, летом – алый."
+        },
+        {
+            speaker: "А.П. Чехов",
+            sprite: "images/char_chekhov.png", 
+            bg: "images/bg_spring_garden.jpg",
+            text: "Задумайся над поэтикой названия. Можно ли твои ассоциации соотнести с замыслом пьесы? Каким образом? И какое, по-твоему, место принадлежит вишнёвому саду в системе образов всей драмы?",
+            correct: "Сад — сквозной образ, лейтмотив всей пьесы, объединяющий героев."
+        },
+        {
+            speaker: "Леонид Гаев",
+            sprite: "images/char_gaev.png", 
+            bg: "images/bg_old_park.jpg", 
+            text: "Да, почтенный шкаф, дорогой сад... время летит. Фирс вон вспоминает то, что было еще до воли, а молодежь грезит будущим. А помнишь ли ты, каковы строгие хронологические рамки событий самой пьесы?",
+            correct: "Действие длится полгода — с мая по октябрь. Но в речах персонажей открывается и далекое прошлое, и будущее, что расширяет рамки."
+        },
+        {
+            speaker: "Аня",
+            sprite: "images/char_anya.png", 
+            bg: "images/bg_old_park.jpg",
+            text: "Мама плачет, дядя говорит глупости... Но сад словно держит нас всех вместе. Ответь мне: какова композиционная роль вишнёвого сада в структуре этого произведения?",
+            correct: "С образом вишнёвого сада связаны основные события всех 4 действий; это сквозной образ, объединяющий всех героев пьесы."
+        },
+        {
+            speaker: "Ермолай Лопахин",
+            sprite: "images/char_lopahin.png", 
+            bg: "images/bg_interior.jpg", 
+            text: "Замечательное имение, господа! Но нужно смотреть правде в глаза. Что читатель/зритель узнаёт о положении вишнёвого сада из самого первого действия? Вспомни, что я им предлагаю.",
+            correct: "Это родовое имение Гаева и Раневской, и оно продаётся за долги. Уже определена дата аукциона. Лопахин предлагает план по спасению имения."
+        },
+        {
+            speaker: "А.П. Чехов",
+            sprite: "images/char_chekhov.png",
+            bg: "images/bg_ballroom.jpg", 
+            text: "Внимание на сюжетные законы. Какое главное происшествие, являющееся кульминацией всего сюжета, умышленно вынесено Чеховым за сцену, вглубь закулисья?",
+            correct: "Торги (аукцион)."
+        },
+        {
+            speaker: "Ермолай Лопахин",
+            sprite: "images/char_lopahin.png",
+            bg: "images/bg_ballroom.jpg",
+            text: "Я купил! Я! Мой дед и отец были тут рабами, не пускали даже на кухню... Скажи, с какой практической и личной целью я (Лопахин) забираю этот вишнёвый сад себе?",
+            correct: "Потому что участок находится в прекрасном месте и может приносить хороший доход. Также Лопахину приятно стать хозяином имения, где его предки были крепостными."
+        },
+        {
+            speaker: "Петя Трофимов",
+            sprite: "images/char_trofimov.png", 
+            bg: "images/bg_ballroom.jpg", 
+            text: "Он размахивает руками, этот купец... Но подумай шире: что на самом деле вишнёвый сад значит для Лопахина в историческом контексте? Почему он так спешит его срубить?",
+            correct: "Вишневый сад для Лопахина – это символ старой жизни, барщины и лени, символ крепостничества. Вырубить сад — значит покончить со старым укладом."
+        },
+        {
+            speaker: "А.П. Чехов",
+            sprite: "images/char_chekhov.png",
+            bg: "images/bg_ballroom.jpg",
+            text: "Подумай над иронией судьбы и ходом истории. Почему, с твоей точки зрения, сад достается именно Ермолаю Лопахину, а не кому-то другому?",
+            correct: "Потому что на аукционе он дает за него самую высокую цену. Лопахин не жалеет денег ради этой символической победы."
+        },
+        {
+            speaker: "Петя Трофимов",
+            sprite: "images/char_trofimov.png",
+            bg: "images/bg_autumn_forest.jpg", 
+            text: "Послушай: «Неужели с каждого листика не глядят на вас человеческие существа... Владеть живыми душами – ведь это переродило всех вас». Помнишь ли ты, кому принадлежит эта пламенная реплика?",
+            correct: "Эта реплика принадлежит Петру Трофимову."
+        },
+        {
+            speaker: "Фирс",
+            sprite: "images/char_firs.png", 
+            bg: "images/bg_empty_house.jpg", 
+            text: "Эх, недотёпы... Уехали, а про старого Фирса забыли. Сад заколотили... Скажи мне, милое дитя, как ты теперь понимаешь: что же такое вишневый сад в самым широком, глобальном смысле?",
+            correct: "1. Действующее лицо пьесы, с ним связана судьба героев; 2. Символ вечного, прекрасного; 3. Это дом, Родина."
+        },
+        {
+            speaker: "А.П. Чехов",
+            sprite: "images/char_chekhov.png",
+            bg: "images/bg_empty_house.jpg",
+            text: "Финальный вопрос, который подведет итог твоему анализу. Так о чем же, в конечном счете, вся эта великая и грустная пьеса — «Вишневый сад»?",
+            correct: "Пьеса о Родине на рубеже веков, накануне огромных испытаний и потрясений."
+        }
+    ];
+
+    let currentStep = 0;
+    let studentData = { name: "" };
+    let gameState = "reading"; 
+
+    const gameWindow = document.getElementById('game-window');
+    const authScreen = document.getElementById('auth-screen');
+    const finalScreen = document.getElementById('final-screen');
+    const inputBox = document.getElementById('input-box');
+    const dialogueBox = document.getElementById('dialogue-box');
+    const progressBadge = document.getElementById('progress-badge');
+    const charSprite = document.getElementById('char-sprite');
+    const charName = document.getElementById('character-name');
+    const textContainer = document.getElementById('text-container');
+    const studentNameInput = document.getElementById('student-name');
+    const studentAnswerInput = document.getElementById('student-answer');
+    const nextBtn = document.getElementById('next-btn');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (document.getElementById('start-btn')) {
+        document.getElementById('start-btn').addEventListener('click', () => {
+            const name = studentNameInput.value.trim();
+            if (name.length < 2) {
+                alert("Пожалуйста, укажите имя и фамилию.");
+                return;
+            }
+            studentData.name = name;
+            authScreen.classList.add('hidden');
+            dialogueBox.classList.remove('hidden');
+            progressBadge.classList.remove('hidden');
+            renderStep();
+        });
+    }
+
+    function renderStep() {
+        const data = scenario[currentStep];
+        gameWindow.style.backgroundImage = `url('${data.bg}')`;
+        progressBadge.innerText = `Вопрос ${currentStep + 1} из ${scenario.length}`;
+        charSprite.classList.add('hidden');
+        charSprite.className = "character-sprite"; 
+        if (currentStep % 2 === 0) { charSprite.classList.add('sprite-left'); } else { charSprite.classList.add('sprite-right'); }
+        charSprite.src = data.sprite;
+        charSprite.classList.remove('hidden');
+        charName.innerText = data.speaker;
+        gameState = "reading";
+        nextBtn.innerText = "Ответить";
+        nextBtn.classList.remove('hidden');
+        inputBox.classList.add('hidden');
+        typeWriter(data.text);
+    }
+
+    let timer;
+    function typeWriter(text) {
+        textContainer.innerHTML = "";
+        let i = 0;
+        clearInterval(timer);
+        timer = setInterval(() => {
+            if (i < text.length) {
+                let char = text.charAt(i);
+                textContainer.innerHTML += (char === " ") ? "&nbsp;" : char;
+                i++;
+            } else {
+                clearInterval(timer);
+            }
+        }, 12); 
+    }
+
+    nextBtn.addEventListener('click', () => {
+        if (gameState === "reading") {
+            clearInterval(timer); 
+            textContainer.innerHTML = scenario[currentStep].text.replace(/ /g, '&nbsp;');
+            gameState = "typing";
+            inputBox.classList.remove('hidden');
+            studentAnswerInput.value = "";
+            nextBtn.classList.add('hidden'); 
+        } else if (gameState === "feedback") {
+            currentStep++;
+            if (currentStep < scenario.length) {
+                renderStep();
+            } else {
+                inputBox.classList.add('hidden');
+                dialogueBox.classList.add('hidden');
+                charSprite.classList.add('hidden');
+                progressBadge.classList.add('hidden');
+                gameWindow.style.backgroundImage = `url('${scenario[scenario.length-1].bg}')`;
+                finalScreen.classList.remove('hidden');
+            }
+        }
+    });
+
+    submitBtn.addEventListener('click', () => {
+        const answer = studentAnswerInput.value.trim();
+        if (!answer) {
+            alert("Пожалуйста, введите ваш ответ перед отправкой.");
+            return;
+        }
+
+        const safeName = studentData.name.replace(/\./g, '_');
+        set(ref(database, 'results/' + safeName + `/q_${currentStep + 1}`), {
+            character: scenario[currentStep].speaker,
+            question: scenario[currentStep].text,
+            student_answer: answer,
+            timestamp: new Date().toISOString()
+        });
+
+        inputBox.classList.add('hidden');
+        gameState = "feedback";
+        charName.innerText = "Усадьба";
+        textContainer.innerHTML = `Успешно. Ваш ответ принят.<br><br><span style="color: #ffd7ff; font-weight: bold;">Правильный ответ:</span> ${scenario[currentStep].correct.replace(/ /g, '&nbsp;')}`;
+        nextBtn.innerText = "Далее";
+        nextBtn.classList.remove('hidden');
+    });
+
+    // === ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ ТАБЛИЦЫ РЕЗУЛЬТАТОВ УЧИТЕЛЯ ===
+    function initAdminPanel() {
+        const adminContainer = document.getElementById('table-results-container');
+        const statusDiv = document.getElementById('loading-status');
+        
+        onValue(ref(database, 'results'), (snapshot) => {
+            statusDiv.style.display = 'none';
+            adminContainer.innerHTML = "";
+            
+            const data = snapshot.val();
+            if (!data) {
+                adminContainer.innerHTML = '<div style="text-align:center;color:#888;">Никто из учеников еще не прошел тест.</div>';
+                return;
+            }
+
+            for (let studentKey in data) {
+                const studentAnswers = data[studentKey];
+                const realName = studentKey.replace(/_/g, ' ');
+                
+                const card = document.createElement('div');
+                card.className = 'student-card';
+                
+                let lastTime = "";
+                let rows = "";
+                
+                const sortedQs = Object.keys(studentAnswers).sort((a,b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
+                
+                sortedQs.forEach(qKey => {
+                    const q = studentAnswers[qKey];
+                    if (q.timestamp) lastTime = new Date(q.timestamp).toLocaleString('ru-RU');
+                    
+                    rows += `
+                        <tr>
+                            <td style="width:100px;font-weight:bold;color:#733d73;">${qKey.replace('q_', 'Вопрос ')}</td>
+                            <td><strong>${q.character}</strong></td>
+                            <td class="q-text">${q.question}</td>
+                            <td class="student-ans">${q.student_answer}</td>
+                        </tr>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="student-title">
+                        <span>🎓 ${realName}</span>
+                        <span class="time-badge">Сдано: ${lastTime}</span>
+                    </div>
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>Герой</th>
+                                <th>Вопрос</th>
+                                <th>Ответ ученика</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+                adminContainer.appendChild(card);
+            }
+        });
+    }
+</script>
+</body>
+</html>
