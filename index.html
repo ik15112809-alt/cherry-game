@@ -15,14 +15,15 @@
             align-items: center;
             min-height: 100vh;
             overflow-x: hidden;
+            padding: 20px;
         }
 
-        /* Стиль игрового окна */
+        /* Исправленное игровое окно — теперь оно сжимается на смартфонах */
         .game-window {
-            width: 100vw;
-            height: 100vh;
-            max-width: 1024px;
-            max-height: 576px;
+            width: 95vw;
+            height: 90vh;
+            max-width: 900px;
+            max-height: 550px;
             border: 3px solid #6b3e6b;
             border-radius: 8px;
             position: relative;
@@ -45,9 +46,9 @@
 
         .sprite-box {
             position: absolute;
-            bottom: 145px;
+            bottom: 155px;
             width: 100%;
-            height: 380px;
+            height: 350px;
             z-index: 2;
             pointer-events: none;
             overflow: hidden;
@@ -71,18 +72,29 @@
         .dialogue-box {
             position: relative;
             z-index: 3;
-            background: rgba(36, 20, 36, 0.92);
+            background: rgba(36, 20, 36, 0.94);
             backdrop-filter: blur(8px);
             border-top: 2px solid #8a5a8a;
             padding: 20px 30px;
-            height: 160px;
+            min-height: 160px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
         .character-name { font-size: 20px; font-weight: bold; color: #ffd7ff; margin-bottom: 8px; text-shadow: 1px 1px 2px black; }
-        .text-container { font-size: 16px; line-height: 1.5; color: #f0e6f0; overflow-y: auto; white-space: normal; }
+        
+        /* Исправленный контейнер текста — теперь он принудительно переносит слова */
+        .text-container { 
+            font-size: 16px; 
+            line-height: 1.6; 
+            color: #f0e6f0; 
+            overflow-y: auto; 
+            white-space: normal !important; 
+            word-wrap: break-word !important;
+            max-width: 100%;
+            padding-right: 10px;
+        }
 
         .input-container {
             position: absolute;
@@ -127,7 +139,7 @@
             border-radius: 12px; font-size: 12px; color: #d8a0d8; z-index: 5;
         }
 
-        /* СТИЛИ ДЛЯ АДМИН-ТАБЛИЦЫ РЕЗУЛЬТАТОВ */
+        /* АДМИН-ТАБЛИЦА РЕЗУЛЬТАТОВ */
         .admin-panel {
             width: 100vw; min-height: 100vh; background: #f7f5f8;
             color: #333; padding: 30px; overflow-y: auto; display: block;
@@ -150,6 +162,16 @@
         .q-text { font-style: italic; color: #555; max-width: 350px; }
         .student-ans { font-weight: 600; color: #111; }
         .loading-text { text-align: center; font-size: 18px; color: #733d73; margin-top: 50px; }
+
+        /* Специальные правила адаптивности для ТЕЛЕФОНОВ */
+        @media (max-width: 768px) {
+            body { padding: 5px; }
+            .game-window { height: 95vh; width: 100vw; border: none; border-radius: 0; }
+            .dialogue-box { padding: 15px 20px; min-height: 190px; } 
+            .character-name { font-size: 18px; }
+            .text-container { font-size: 14px; line-height: 1.5; }
+            .sprite-box { height: 260px; bottom: 195px; } 
+        }
     </style>
 </head>
 <body>
@@ -182,7 +204,7 @@
             <div class="character-name" id="character-name"></div>
             <div class="text-container" id="text-container"></div>
         </div>
-        <div style="text-align: right;">
+        <div style="text-align: right; margin-top: 10px;">
             <button class="btn" id="next-btn">Далее</button>
         </div>
     </div>
@@ -220,10 +242,8 @@
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
 
-    // === ПРОВЕРКА КТО ОТКРЫЛ ССЫЛКУ (УЧЕНИК ИЛИ УЧИТЕЛЬ) ===
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('admin') === '1') {
-        // Если в ссылке есть ?admin=1, прячем игру и включаем генерацию таблицы
         document.getElementById('game-window').style.display = 'none';
         document.getElementById('admin-window').classList.remove('hidden');
         initAdminPanel();
@@ -297,7 +317,7 @@
             speaker: "Петя Трофимов",
             sprite: "images/char_trofimov.png",
             bg: "images/bg_autumn_forest.jpg", 
-            text: "Послушай: «Неужели с каждого листика не глядят на вас человеческие существа... Владеть живыми душами – ведь это переродило всех вас». Помнишь ли ты, кому принадлежит эта пламенная реплика?",
+            text: "Послушал: «Неужели с каждого листика не глядят на вас человеческие существа... Владеть живыми душами – ведь это переродило всех вас». Помнишь ли ты, кому принадлежит эта пламенная реплика?",
             correct: "Эта реплика принадлежит Петру Трофимову."
         },
         {
@@ -428,7 +448,6 @@
         nextBtn.classList.remove('hidden');
     });
 
-    // === ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ ТАБЛИЦЫ РЕЗУЛЬТАТОВ УЧИТЕЛЯ ===
     function initAdminPanel() {
         const adminContainer = document.getElementById('table-results-container');
         const statusDiv = document.getElementById('loading-status');
