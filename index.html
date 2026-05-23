@@ -302,6 +302,14 @@
 
 
 <script type="module">
+    async function checkPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return hash === "8c66e2c34a2e519c2f6d288d011f0a233b8a9235e128186196236b328a6f6932";
+}
+
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -319,11 +327,21 @@
     const database = getDatabase(app);
 
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('admin') === '1') {
-        document.getElementById('game-window').style.display = 'none';
-        document.getElementById('admin-window').classList.remove('hidden');
-        initAdminPanel();
-    }
+   if (urlParams.get('admin') === '1') {
+    document.getElementById('game-window').style.display = 'none';
+    const password = prompt("Введите пароль администратора:");
+    
+    checkPassword(password || "").then(isMatch => {
+        if (isMatch) {
+            document.getElementById('admin-window').classList.remove('hidden');
+            initAdminPanel();
+        } else {
+            alert("Неверный пароль!");
+            window.location.href = "index.html";
+        }
+    });
+}
+
 
     const scenario = [
         {
